@@ -9,7 +9,8 @@ model:
   window_size: 5
   negative_samples: 5
   subsample_threshold: 0.001  # Threshold for subsampling frequent words
-  batch_size: 1024 #512             # Batch size for vectorized training
+  batch_size: 4096            # Larger batches for Numba parallel processing
+  n_threads: 20              # Number of Numba parallel threads
 
 training:
   epochs: 50

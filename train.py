@@ -14,6 +14,7 @@ from datasets import (
     load_text8
 )
 import numpy as np
+from numba import set_num_threads
 from tqdm import tqdm  
 
 def load_config(config_path: str) -> dict:
@@ -99,6 +100,12 @@ def train(config: dict):
     vocab = set(word for sentence in sentences for word in sentence)
     print(f"Vocabulary size: {len(vocab)}")
     
+    # Set Numba threads if configured
+    n_threads = config['model'].get('n_threads')
+    if n_threads:
+        set_num_threads(n_threads)
+        print(f"Using {n_threads} Numba threads for parallel training")
+    
     # Log dataset info to wandb
     wandb.log({
         'num_sentences': len(sentences),
@@ -113,7 +120,7 @@ def train(config: dict):
         learning_rate=config['training']['learning_rate'],
         negative_samples=config['model']['negative_samples'],
         subsample_threshold=config['model'].get('subsample_threshold', 1e-3),
-        batch_size=config['model'].get('batch_size', 256),
+        batch_size=config['model'].get('batch_size', 4096),
     )
     
     # Train with wandb logging

@@ -1,10 +1,67 @@
 """
 Word2Vec model implementation using skip-gram architecture with negative sampling.
 Implemented in pure NumPy without deep learning frameworks.
-Optimized with batching, subsampling, and vectorized operations.
+Optimized with batching, subsampling, vectorized operations, and Numba JIT.
 """
 import numpy as np
 from collections import Counter
+from numba import njit, prange
+import os
+
+# Set BLAS threads for matrix operations
+os.environ.setdefault('OMP_NUM_THREADS', '4')
+os.environ.setdefault('MKL_NUM_THREADS', '4')
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '4')
+
+
+@njit(parallel=True, fastmath=True)
+def _train_batch_numba(W_embed, W_context, center_indices, context_indices, labels, learning_rate):
+    """
+    Numba-JIT compiled batch training function.
+    Runs in parallel across CPU cores.
+    """
+    batch_size = len(center_indices)
+    embedding_dim = W_embed.shape[1]
+    total_loss = 0.0
+    
+    for i in prange(batch_size):
+        center_idx = center_indices[i]
+        context_idx = context_indices[i]
+        label = labels[i]
+        
+        # Get vectors
+        center_vec = W_embed[center_idx]
+        context_vec = W_context[context_idx]
+        
+        # Dot product
+        dot = 0.0
+        for d in range(embedding_dim):
+            dot += center_vec[d] * context_vec[d]
+        
+        # Sigmoid with numerical stability
+        if dot >= 0:
+            sig = 1.0 / (1.0 + np.exp(-dot))
+        else:
+            exp_dot = np.exp(dot)
+            sig = exp_dot / (1.0 + exp_dot)
+        
+        # BCE loss
+        if label == 1:
+            total_loss += -np.log(sig + 1e-7)
+        else:
+            total_loss += -np.log(1 - sig + 1e-7)
+        
+        # Gradient
+        grad = sig - label
+        
+        # Update weights
+        for d in range(embedding_dim):
+            grad_center = grad * context_vec[d]
+            grad_context = grad * center_vec[d]
+            W_embed[center_idx, d] -= learning_rate * grad_center
+            W_context[context_idx, d] -= learning_rate * grad_context
+    
+    return total_loss
 
 
 class Word2Vec:
@@ -150,39 +207,44 @@ class Word2Vec:
                         1 / (1 + np.exp(-x)), 
                         np.exp(x) / (1 + np.exp(x)))
 
-    def _train_batch(self, center_indices, context_indices, labels):
+    def _train_batch(self, center_indices, context_indices, labels, use_numba=True):
         """
-        Train on a batch of (center, context) pairs using vectorized operations.
+        Train on a batch of (center, context) pairs.
         
         Args:
             center_indices (np.ndarray): Array of center word indices (batch_size,).
             context_indices (np.ndarray): Array of context word indices (batch_size,).
             labels (np.ndarray): Array of labels, 1 for positive, 0 for negative (batch_size,).
+            use_numba (bool): Whether to use Numba JIT compilation for speedup.
         
         Returns:
             float: Total loss for the batch.
-        """        
-        # Get embeddings for batch
-        center_vecs = self.W_embed[center_indices]      # (batch_size, embedding_dim)
-        context_vecs = self.W_context[context_indices]  # (batch_size, embedding_dim)
+        """
+        if use_numba and len(center_indices) > 0:
+            # Use Numba-compiled parallel function
+            return _train_batch_numba(
+                self.W_embed, self.W_context,
+                center_indices.astype(np.int64),
+                context_indices.astype(np.int64),
+                labels.astype(np.float64),
+                self.learning_rate
+            )
         
-        # Forward pass: dot products and sigmoid
-        dot_products = np.sum(center_vecs * context_vecs, axis=1)  # (batch_size,)
+        # Fallback to pure NumPy (for compatibility)
+        center_vecs = self.W_embed[center_indices]
+        context_vecs = self.W_context[context_indices]
+        
+        dot_products = np.sum(center_vecs * context_vecs, axis=1)
         predictions = self._sigmoid(dot_products)
         
-        # Binary cross-entropy loss
         epsilon = 1e-7
         loss = -np.sum(labels * np.log(predictions + epsilon) + 
                        (1 - labels) * np.log(1 - predictions + epsilon))
         
-        # Backward pass: compute gradients
-        grad_output = (predictions - labels).reshape(-1, 1)  # (batch_size, 1)
+        grad_output = (predictions - labels).reshape(-1, 1)
+        grad_center = grad_output * context_vecs
+        grad_context = grad_output * center_vecs
         
-        # Gradients for embeddings
-        grad_center = grad_output * context_vecs    # (batch_size, embedding_dim)
-        grad_context = grad_output * center_vecs    # (batch_size, embedding_dim)
-        
-        # Accumulate gradients for each unique index using np.add.at
         np.add.at(self.W_embed, center_indices, -self.learning_rate * grad_center)
         np.add.at(self.W_context, context_indices, -self.learning_rate * grad_context)
         
@@ -233,6 +295,7 @@ class Word2Vec:
     def train_epoch(self, training_pairs):
         """
         Train one epoch using batched processing.
+        Parallelization is handled by Numba JIT via set_num_threads().
         
         Args:
             training_pairs (np.ndarray): Array of (center_idx, context_idx) pairs.
