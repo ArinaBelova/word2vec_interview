@@ -1,0 +1,3 @@
+.github/*
+wandb/*
+__pycache__/*
