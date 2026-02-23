@@ -6,13 +6,65 @@ import argparse
 import wandb
 from word2vec import Word2Vec
 from utils import load_data, preprocess_data
-
+from datasets import (
+    load_brown_corpus, 
+    load_reuters_corpus, 
+    load_gutenberg_corpus,
+    load_combined_corpus,
+    load_text8
+)
+import numpy as np
+from tqdm import tqdm  
 
 def load_config(config_path: str) -> dict:
     """Load configuration from YAML file."""
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     return config
+
+
+def load_sentences(config: dict) -> list:
+    """
+    Load sentences based on data source configuration.
+    
+    Args:
+        config: Configuration dictionary.
+    
+    Returns:
+        list: List of sentences (each sentence is a list of words).
+    """
+    data_config = config.get('data', {})
+    source = data_config.get('source', 'file')
+    max_sentences = data_config.get('max_sentences')
+    
+    if source == 'file':
+        print(f"Loading from file: {data_config['file_path']}")
+        data = load_data(data_config['file_path'])
+        sentences = preprocess_data(data)
+    elif source == 'brown':
+        print("Loading Brown corpus...")
+        sentences = load_brown_corpus()
+    elif source == 'reuters':
+        print("Loading Reuters corpus...")
+        sentences = load_reuters_corpus()
+    elif source == 'gutenberg':
+        print("Loading Gutenberg corpus...")
+        sentences = load_gutenberg_corpus()
+    elif source == 'combined':
+        print("Loading combined corpus (Brown + Reuters + Gutenberg)...")
+        sentences = load_combined_corpus()
+    elif source == 'text8':
+        print("Loading text8 dataset...")
+        sentences = load_text8(max_sentences=max_sentences)
+        max_sentences = None  # Already limited in load_text8
+    else:
+        raise ValueError(f"Unknown data source: {source}")
+    
+    # Limit sentences if specified
+    if max_sentences:
+        sentences = sentences[:max_sentences]
+    
+    return sentences
 
 
 def train(config: dict):
@@ -35,13 +87,12 @@ def train(config: dict):
             'negative_samples': config['model']['negative_samples'],
             'learning_rate': config['training']['learning_rate'],
             'epochs': config['training']['epochs'],
+            'data_source': config['data'].get('source', 'file'),
         }
     )
     
-    # Load and preprocess data
-    print("Loading data...")
-    data = load_data(config['data']['file_path'])
-    sentences = preprocess_data(data)
+    # Load data using configured source
+    sentences = load_sentences(config)
     print(f"Loaded {len(sentences)} sentences")
     
     # Build vocabulary stats
@@ -85,8 +136,7 @@ def train_with_logging(model: Word2Vec, epochs: int, log_interval: int = 10):
         epochs: Number of training epochs.
         log_interval: How often to log metrics.
     """
-    import numpy as np
-    
+
     # Generate training pairs
     training_pairs = model._generate_training_pairs()
     
@@ -97,7 +147,7 @@ def train_with_logging(model: Word2Vec, epochs: int, log_interval: int = 10):
     wandb.log({'num_training_pairs': len(training_pairs)})
     print(f"Training on {len(training_pairs)} word pairs for {epochs} epochs...")
     
-    for epoch in range(epochs):
+    for epoch in tqdm(range(epochs), desc="Training"):
         total_loss = 0.0
         np.random.shuffle(training_pairs)
         

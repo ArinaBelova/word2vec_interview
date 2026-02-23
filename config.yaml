@@ -1,15 +1,18 @@
 data:
-  file_path: "data.txt"
+  # Options: "file" (use file_path), "brown", "reuters", "gutenberg", "combined", "text8"
+  source: "brown"
+  file_path: "data.txt"  # Only used if source is "file"
+  max_sentences: null    # Limit sentences (null for all)
 
 model:
-  embedding_dim: 50
-  window_size: 2
+  embedding_dim: 100
+  window_size: 5
   negative_samples: 5
 
 training:
-  epochs: 100
-  learning_rate: 0.05
-  log_interval: 10 
+  epochs: 50
+  learning_rate: 0.025
+  log_interval: 5
 
 wandb:
   project: "word2vec"
