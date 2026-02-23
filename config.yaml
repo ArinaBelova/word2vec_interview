@@ -8,6 +8,8 @@ model:
   embedding_dim: 100
   window_size: 5
   negative_samples: 5
+  subsample_threshold: 0.001  # Threshold for subsampling frequent words
+  batch_size: 1024 #512             # Batch size for vectorized training
 
 training:
   epochs: 50
@@ -18,4 +20,3 @@ wandb:
   project: "word2vec"
   entity: null
   run_name: null
-  tags: ["skip-gram", "numpy"]

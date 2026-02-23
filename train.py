@@ -105,13 +105,15 @@ def train(config: dict):
         'vocab_size': len(vocab),
     })
     
-    # Initialize model
+    # Initialize model with optimization parameters
     model = Word2Vec(
         sentences=sentences,
         embedding_dim=config['model']['embedding_dim'],
         window_size=config['model']['window_size'],
         learning_rate=config['training']['learning_rate'],
         negative_samples=config['model']['negative_samples'],
+        subsample_threshold=config['model'].get('subsample_threshold', 1e-3),
+        batch_size=config['model'].get('batch_size', 256),
     )
     
     # Train with wandb logging
@@ -130,6 +132,7 @@ def train(config: dict):
 def train_with_logging(model: Word2Vec, epochs: int, log_interval: int = 10):
     """
     Train the model with wandb logging for loss tracking.
+    Uses optimized batched training.
     
     Args:
         model: Word2Vec model instance.
@@ -140,29 +143,17 @@ def train_with_logging(model: Word2Vec, epochs: int, log_interval: int = 10):
     # Generate training pairs
     training_pairs = model._generate_training_pairs()
     
-    if not training_pairs:
+    if len(training_pairs) == 0:
         print("No training pairs generated. Check your data.")
         return
     
     wandb.log({'num_training_pairs': len(training_pairs)})
     print(f"Training on {len(training_pairs)} word pairs for {epochs} epochs...")
+    print(f"Batch size: {model.batch_size}, Subsampling threshold: {model.subsample_threshold}")
     
     for epoch in tqdm(range(epochs), desc="Training"):
-        total_loss = 0.0
-        np.random.shuffle(training_pairs)
-        
-        for center_idx, context_idx in training_pairs:
-            # Positive sample
-            loss = model._train_pair(center_idx, context_idx, label=1)
-            total_loss += loss
-            
-            # Negative samples
-            negative_indices = model._get_negative_samples(context_idx)
-            for neg_idx in negative_indices:
-                loss = model._train_pair(center_idx, neg_idx, label=0)
-                total_loss += loss
-        
-        avg_loss = total_loss / (len(training_pairs) * (1 + model.negative_samples))
+        # Use optimized batched training
+        avg_loss = model.train_epoch(training_pairs)
         
         # Log to wandb every epoch
         wandb.log({
