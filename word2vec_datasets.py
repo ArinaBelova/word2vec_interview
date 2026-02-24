@@ -157,6 +157,65 @@ def load_text8(max_sentences=None):
     return sentences
 
 
+def load_wikitext(variant='wikitext-103-v1', max_sentences=None):
+    """
+    Load the WikiText dataset from Hugging Face.
+    
+    WikiText is a collection of Wikipedia articles suitable for language modeling.
+    Available variants:
+        - 'wikitext-2-v1': Small (~2M tokens)
+        - 'wikitext-2-raw-v1': Small, raw (with original casing)
+        - 'wikitext-103-v1': Large (~103M tokens)
+        - 'wikitext-103-raw-v1': Large, raw (with original casing)
+    
+    Args:
+        variant: Which WikiText variant to load (default: 'wikitext-103-v1').
+        max_sentences: Maximum number of sentences to load (None for all).
+    
+    Returns:
+        list: List of sentences, each sentence is a list of lowercase words.
+    
+    Requires:
+        pip install datasets
+    """
+    
+    from datasets import load_dataset
+
+    print(f"Loading WikiText dataset ({variant})...")
+    dataset = load_dataset('Salesforce/wikitext', variant)
+    
+    sentences = []
+    
+    # Process train split (largest)
+    for split in ['train', 'validation', 'test']:
+        if split in dataset:
+            print(f"  Processing {split} split...")
+            for item in dataset[split]:
+                text = item['text'].strip()
+                if not text or text.startswith('='):  # Skip empty lines and headers
+                    continue
+                
+                # Split into sentences (simple approach: split on periods)
+                # Then tokenize each sentence
+                for sent_text in text.replace('!', '.').replace('?', '.').split('.'):
+                    sent_text = sent_text.strip()
+                    if not sent_text:
+                        continue
+                    
+                    # Tokenize: lowercase and keep alphabetic words
+                    words = [word.lower() for word in sent_text.split() if word.isalpha()]
+                    
+                    if len(words) >= 2:
+                        sentences.append(words)
+                        
+                        if max_sentences and len(sentences) >= max_sentences:
+                            print(f"Loaded {len(sentences)} sentences from WikiText")
+                            return sentences
+    
+    print(f"Loaded {len(sentences)} sentences from WikiText")
+    return sentences
+
+
 if __name__ == "__main__":
     # Demo: load combined corpus
     sentences = load_combined_corpus()

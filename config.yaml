@@ -1,6 +1,6 @@
 data:
-  # Options: "file" (use file_path), "brown", "reuters", "gutenberg", "combined", "text8"
-  source: "brown" #"brown"
+  # Options: "file" (use file_path), "brown", "reuters", "gutenberg", "combined", "text8", "wikitext-2", "wikitext-103"
+  source: "wikitext-103" #"brown"
   file_path: "data.txt"  # Only used if source is "file" for very dummy experimentation
   max_sentences: null    # Limit sentences (null for all)
 
@@ -11,8 +11,8 @@ model:
   subsample_threshold: 0.00001  # 10e-5 eas in the paper Threshold for subsampling frequent words
   batch_size: 4096            # Larger batches for Numba parallel processing
   n_threads: 20              # Number of Numba parallel threads
-  save_model_path: "word2vec_model_larger_embedding.pkl"  # Path to save the trained model
-  save_embeddings_path: "embeddings_large.txt"  # Path to save the embeddings in text format
+  save_model_path: "word2vec_model_larger_embedding_wikitext.pkl"  # Path to save the trained model
+  save_embeddings_path: "embeddings_large_wikitext.txt"  # Path to save the embeddings in text format
 
 training:
   epochs: 100

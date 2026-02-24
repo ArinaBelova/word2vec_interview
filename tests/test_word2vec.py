@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from word2vec import Word2Vec
 from utils import load_data, preprocess_data
-from datasets import load_brown_corpus
+from word2vec_datasets import load_brown_corpus
 
 
 class TestPreprocessing:

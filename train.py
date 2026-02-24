@@ -6,12 +6,13 @@ import argparse
 import wandb
 from word2vec import Word2Vec
 from utils import load_data, preprocess_data
-from datasets import (
+from word2vec_datasets import (
     load_brown_corpus, 
     load_reuters_corpus, 
     load_gutenberg_corpus,
     load_combined_corpus,
-    load_text8
+    load_text8,
+    load_wikitext
 )
 import numpy as np
 from numba import set_num_threads
@@ -58,6 +59,19 @@ def load_sentences(config: dict) -> list:
         print("Loading text8 dataset...")
         sentences = load_text8(max_sentences=max_sentences)
         max_sentences = None  # Already limited in load_text8
+    elif source.startswith('wikitext'):
+        # Support: wikitext, wikitext-2, wikitext-103, wikitext-2-raw, wikitext-103-raw
+        variant_map = {
+            'wikitext': 'wikitext-103-v1',
+            'wikitext-2': 'wikitext-2-v1',
+            'wikitext-103': 'wikitext-103-v1',
+            'wikitext-2-raw': 'wikitext-2-raw-v1',
+            'wikitext-103-raw': 'wikitext-103-raw-v1',
+        }
+        variant = variant_map.get(source, 'wikitext-103-v1')
+        print(f"Loading WikiText dataset ({variant})...")
+        sentences = load_wikitext(variant=variant, max_sentences=max_sentences)
+        max_sentences = None  # Already limited in load_wikitext
     else:
         raise ValueError(f"Unknown data source: {source}")
     
