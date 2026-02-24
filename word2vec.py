@@ -125,8 +125,8 @@ class Word2Vec:
         # Initialize weight matrices with small random values
         # W_embed: input word embeddings (vocab_size x embedding_dim)
         # W_context: context word embeddings (vocab_size x embedding_dim)
-        self.W_embed = np.random.randn(self.vocab_size, embedding_dim) * 0.01
-        self.W_context = np.random.randn(self.vocab_size, embedding_dim) * 0.01
+        self.W_embed = np.random.randn(self.vocab_size, embedding_dim) 
+        self.W_context = np.random.randn(self.vocab_size, embedding_dim) 
         
         # Store word vectors after training
         self.word_to_vec = {}
@@ -246,25 +246,6 @@ class Word2Vec:
         
         return loss
 
-    def _train_pair(self, center_idx, context_idx, label):
-        """
-        Train on a single (center, context) pair using negative sampling loss.
-        Kept for backward compatibility with tests.
-        
-        Args:
-            center_idx (int): Index of the center word.
-            context_idx (int): Index of the context word.
-            label (int): 1 for positive pair, 0 for negative pair.
-        
-        Returns:
-            float: The loss for this pair.
-        """
-        return self._train_batch(
-            np.array([center_idx]), 
-            np.array([context_idx]), 
-            np.array([label])
-        )
-
     def _get_negative_samples(self, positive_idx):
         """
         Get random negative sample indices (words that are not the positive context).
@@ -328,6 +309,10 @@ class Word2Vec:
                 neg_indices = neg_samples[:, k]
                 negative_labels = np.zeros(actual_batch_size)
                 total_loss += self._train_batch(center_indices, neg_indices, negative_labels)
+        
+        # Update word_to_vec with current embeddings after each epoch
+        for word, idx in self._word2idx.items():
+            self.word_to_vec[word] = self.W_embed[idx].tolist()
         
         # Calculate average loss
         total_samples = len(training_pairs) * (1 + self.negative_samples)

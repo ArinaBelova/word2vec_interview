@@ -169,11 +169,16 @@ def train_with_logging(model: Word2Vec, epochs: int, log_interval: int = 10):
         })
         
         if (epoch + 1) % log_interval == 0:
+            # intermediately test the model by displaying the closest words to the choisen word and log it to wandb
+            if model.vocab:
+                test_word = model.vocab[np.random.randint(model.vocab_size)]
+                # check if embedding for this word exists
+                while model.get_embedding(test_word) is None:
+                    test_word = model.vocab[np.random.randint(model.vocab_size)]
+                similar = model.most_similar(test_word, top_n=3)
+                print(f"Most similar to '{test_word}': {similar}")
+                wandb.log({f'most_similar_to_{test_word}': similar})
             print(f"Epoch {epoch + 1}/{epochs}, Loss: {avg_loss:.4f}")
-    
-    # Store final embeddings
-    for word, idx in model._word2idx.items():
-        model.word_to_vec[word] = model.W_embed[idx].tolist()
     
     print("Training complete!")
 
@@ -199,7 +204,7 @@ def main():
 
     # Test the trained model
     if model.vocab:
-        test_word = model.vocab[0]
+        test_word = model.vocab[np.random.randint(model.vocab_size)]
         print(f"\nEmbedding for '{test_word}': {model.get_embedding(test_word)[:5]}...")
         similar = model.most_similar(test_word, top_n=3)
         print(f"Most similar to '{test_word}': {similar}")
