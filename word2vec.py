@@ -125,8 +125,8 @@ class Word2Vec:
         # Initialize weight matrices with small random values
         # W_embed: input word embeddings (vocab_size x embedding_dim)
         # W_context: context word embeddings (vocab_size x embedding_dim)
-        self.W_embed = np.random.randn(self.vocab_size, embedding_dim) 
-        self.W_context = np.random.randn(self.vocab_size, embedding_dim) 
+        self.W_embed = np.random.randn(self.vocab_size, embedding_dim) * 0.01
+        self.W_context = np.random.randn(self.vocab_size, embedding_dim) * 0.01
         
         # Store word vectors after training
         self.word_to_vec = {}
@@ -163,6 +163,25 @@ class Word2Vec:
                         pairs.append((center_idx, context_idx))
         
         return np.array(pairs, dtype=np.int32) if pairs else np.array([], dtype=np.int32)
+    
+    def _train_pair(self, center_idx, context_idx, label):
+        """
+        Train on a single (center, context) pair using negative sampling loss.
+        Kept for backward compatibility with tests.
+        
+        Args:
+            center_idx (int): Index of the center word.
+            context_idx (int): Index of the context word.
+            label (int): 1 for positive pair, 0 for negative pair.
+        
+        Returns:
+            float: The loss for this pair.
+        """
+        return self._train_batch(
+            np.array([center_idx]), 
+            np.array([context_idx]), 
+            np.array([label])
+        )
 
     def _get_negative_samples_batch(self, positive_indices, batch_size):
         """
