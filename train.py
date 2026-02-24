@@ -192,6 +192,11 @@ def main():
     config = load_config(args.config)
     model = train(config)
     
+    # Save the embeddings
+    model.save_embeddings(config["model"].get("save_embeddings_path", "embeddings.txt"))
+    #save model as an object
+    model.save_model(config["model"].get("save_model_path", "word2vec_model.pkl"))
+
     # Test the trained model
     if model.vocab:
         test_word = model.vocab[0]

@@ -7,11 +7,7 @@ import numpy as np
 from collections import Counter
 from numba import njit, prange
 import os
-
-# Set BLAS threads for matrix operations
-os.environ.setdefault('OMP_NUM_THREADS', '4')
-os.environ.setdefault('MKL_NUM_THREADS', '4')
-os.environ.setdefault('OPENBLAS_NUM_THREADS', '4')
+import pickle
 
 
 @njit(parallel=True, fastmath=True)
@@ -396,4 +392,45 @@ class Word2Vec:
                     similarities.append((other_word, similarity))
         
         similarities.sort(key=lambda x: x[1], reverse=True)
-        return similarities[:top_n]    
+        return similarities[:top_n]
+
+    def save_embeddings(self, filepath):
+        """
+        Save word embeddings to a text file in word2vec format.
+        
+        Args:
+            filepath (str): Path to save the embeddings file.
+        """
+        with open(filepath, 'w') as f:
+            f.write(f"{self.vocab_size} {self.embedding_dim}\n")
+            for word, vec in self.word_to_vec.items():
+                vec_str = ' '.join(str(v) for v in vec)
+                f.write(f"{word} {vec_str}\n")
+        print(f"Embeddings saved to {filepath}")
+
+    def save_model(self, filepath):
+        """
+        Save the entire model as a pickle file.
+        
+        Args:
+            filepath (str): Path to save the model file.
+        """
+        with open(filepath, 'wb') as f:
+            pickle.dump(self, f)
+        print(f"Model saved to {filepath}")
+
+    @staticmethod
+    def load_model(filepath):
+        """
+        Load a model from a pickle file.
+        
+        Args:
+            filepath (str): Path to the saved model file.
+        
+        Returns:
+            Word2Vec: The loaded model instance.
+        """
+        with open(filepath, 'rb') as f:
+            model = pickle.load(f)
+        print(f"Model loaded from {filepath}")
+        return model    
